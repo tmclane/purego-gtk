@@ -3,6 +3,7 @@ package gtk
 import (
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/ebitengine/purego"
 )
@@ -18,6 +19,8 @@ var (
 )
 
 func init() {
+	_ = os.Setenv("GDK_BACKEND", "x11")
+
 	var err error
 	gtk, err = purego.Dlopen(gtk4, purego.RTLD_NOW|purego.RTLD_GLOBAL)
 	if err == nil {
@@ -27,6 +30,11 @@ func init() {
 
 	log.Println("Failed to open GTK4: Falling back to GTK3")
 	gtk, err = purego.Dlopen(gtk3, purego.RTLD_NOW|purego.RTLD_GLOBAL)
+	if err != nil {
+		panic(err)
+	}
+	version = 3
+
 }
 
 func NewApplication(identifier string) *Application {
@@ -43,27 +51,18 @@ type Application struct {
 }
 
 func (a *Application) activate() {
-	fmt.Println("Application.activate()")
-	var hold func(uintptr)
-	purego.RegisterLibFunc(&hold, gtk, "g_application_hold")
-	hold(a.application)
+	fmt.Println("Application.activate - callback")
 }
 
 func (a *Application) Run(argc int, argv []string) int {
 	var run func(uintptr, int, []string) int
 	purego.RegisterLibFunc(&run, gtk, "g_application_run")
-
-	/*
-	  GObject* instance,
-	  const gchar* detailed_signal,
-	  GCallback c_handler,
-	  gpointer data,
-	  GClosureNotify destroy_data,
-	  GConnectFlags connect_flags
-	*/
-	var signal func(uintptr, string, uintptr, uintptr, bool, int) int
-	purego.RegisterLibFunc(&signal, gtk, "g_signal_connect_data")
-	signal(a.application, "activate", purego.NewCallback(a.activate), a.application, false, 0)
+	var hold func(uintptr)
+	purego.RegisterLibFunc(&hold, gtk, "g_application_hold")
+	hold(a.application)
+	var g_signal_connect func(uintptr, string, uintptr, uintptr, bool, int) int
+	purego.RegisterLibFunc(&g_signal_connect, gtk, "g_signal_connect_data")
+	g_signal_connect(a.application, "activate", purego.NewCallback(a.activate), a.application, false, 0)
 
 	status := run(a.application, argc, argv)
 	//g_object_unref(app)
@@ -79,8 +78,12 @@ type Window struct {
 
 func (w *Window) Show() *Window {
 	var show func(uintptr)
-	purego.RegisterLibFunc(&show, gtk, "gtk_widget_show_all")
-
+	if version == 3 {
+		purego.RegisterLibFunc(&show, gtk, "gtk_widget_show")
+	} else {
+		fmt.Println("gtk_window_present")
+		purego.RegisterLibFunc(&show, gtk, "gtk_window_present")
+	}
 	show(w.window)
 	return w
 }
@@ -100,11 +103,13 @@ func (w *Window) SetSize(height, width int) *Window {
 }
 
 func (g *Application) NewWindow(name string) *Window {
-	var gtkNew func(uintptr) uintptr
-	purego.RegisterLibFunc(&gtkNew, gtk, "gtk_application_window_new")
+	fmt.Println("NewWindow: ", g.application)
+	var windowNew func(uintptr) uintptr
+	purego.RegisterLibFunc(&windowNew, gtk, "gtk_application_window_new")
 
 	window := &Window{
-		window: gtkNew(g.application),
+		window: windowNew(g.application),
 	}
+	fmt.Println("NewWindow: - end", window)
 	return window
 }
