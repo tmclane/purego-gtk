@@ -42,6 +42,13 @@ type Application struct {
 	application uintptr
 }
 
+func (a *Application) activate() {
+	fmt.Println("Application.activate()")
+	var hold func(uintptr)
+	purego.RegisterLibFunc(&hold, gtk, "g_application_hold")
+	hold(a.application)
+}
+
 func (a *Application) Run(argc int, argv []string) int {
 	var run func(uintptr, int, []string) int
 	purego.RegisterLibFunc(&run, gtk, "g_application_run")
@@ -61,11 +68,6 @@ func (a *Application) Run(argc int, argv []string) int {
 	status := run(a.application, argc, argv)
 	//g_object_unref(app)
 	return status
-}
-
-//export activate
-func (a *Application) activate() {
-	fmt.Println("activate called")
 }
 
 type Window struct {
