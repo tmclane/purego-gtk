@@ -6,21 +6,17 @@
 package main
 
 import (
-	"fmt"
 	"time"
 
-	"purego-gtk/pkg/gtk"
+	"purego-gtk/pkg/application"
 )
 
 func main() {
-	fmt.Println("main.go")
-
-	application := gtk.NewApplication("io.wails")
-	var window *gtk.Window
+	app := application.New("PureGo Test")
+	window := app.NewWindow("Name").SetSize(500, 500)
 	go func() {
 		time.Sleep(1 * time.Second)
-		window = application.NewWindow("Name").SetSize(100, 100)
 		window.Show()
 	}()
-	application.Run(0, []string{})
+	app.Run(0, []string{})
 }
