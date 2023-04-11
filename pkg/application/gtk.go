@@ -7,7 +7,6 @@ import (
 	"log"
 	"os"
 	"strings"
-	"sync"
 
 	"github.com/ebitengine/purego"
 )
@@ -58,12 +57,6 @@ func New(name string) *Application {
 	return a
 }
 
-type Application struct {
-	application uintptr
-	windows     map[string]*Window
-	windowLock  sync.Mutex
-}
-
 func (a *Application) activate() {
 	fmt.Println("Application.activate - callback")
 }
@@ -78,25 +71,6 @@ func (a *Application) Run(argc int, argv []string) int {
 	status := run(a.application, argc, argv)
 	//g_object_unref(app)
 	return status
-}
-
-func (g *Application) NewWindow(name string) *Window {
-	g.windowLock.Lock()
-	defer g.windowLock.Unlock()
-	window := &Window{
-		application: g,
-		name:        name,
-	}
-	g.windows[name] = window
-	return window
-}
-
-type Window struct {
-	application *Application
-	name        string
-	window      uintptr
-	height      uint
-	width       uint
 }
 
 func (w *Window) Show() *Window {
